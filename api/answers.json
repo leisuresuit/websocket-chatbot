@@ -1,42 +1,58 @@
 [
   {
     "question": "hi",
-    "answer": "hello"
+    "answer": "Hello! How can I help you?"
   },
   {
-    "question": "-help",
-    "answer": "You can find a list of questions/answers here: https://github.com/kevinmartinez/websocket-chatbot#api"
+    "question": "who are you",
+    "answer": "I'm a hackathon demo of the conversation AI chatbot."
   },
   {
-    "question": "who are you?",
-    "answer": "i am a bot"
+    "question": "refund",
+    "answer": "Sure, I can help you with that. When was the charge made?"
   },
   {
-    "question": "where do you come from?",
-    "answer": "The machine world"
+    "question": "i need a refund",
+    "answer": "Sure, I can help you with that. When was the charge made?"
   },
   {
-    "question": "matrix?",
-    "answer": "Yes, i am the one"
+    "question": "last wednesday",
+    "answer": "What's the business name?"
   },
   {
-    "question": "what is love?",
-    "answer": "Baby dont't hurt me, don't hurt me..."
+    "question": "i got a brick",
+    "answer": "I'm sorry to hear that. I will dispute the $4.99 charge for you."
   },
   {
-    "question": "where can i learn css?",
-    "answer": "http://www.teamtreehouse.com"
+    "question": "thank you",
+    "answer": "You're welcome! Is there anything else I can help you with?"
   },
   {
-    "question": "how old are you?",
-    "answer": "I am 0101001101 years old"
+    "question": "no",
+    "answer": "OK, have a nice day!"
   },
   {
-    "question": "what is the meaning of life?",
-    "answer": "42"
+    "question": "nope",
+    "answer": "OK, have a nice day!"
+  },
+  {
+    "question": "never mind",
+    "answer": "OK, have a nice day!"
+  },
+  {
+    "question": "nevermind",
+    "answer": "OK, have a nice day!"
+  },
+  {
+    "question": "goodbye",
+    "answer": "Thank you. Have a nice day!"
+  },
+  {
+    "question": "have a nice day",
+    "answer": "Thank you. You too!"
   },
   {
     "question": "bye",
-    "answer": "ciao"
+    "answer": "Thank you. Have a nice day!"
   }
 ]
