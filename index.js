@@ -1,37 +1,12 @@
 'use strict'
 
-const express = require('express')
 const http = require('http')
+const https = require('https')
 const axios = require('axios')
 const WebSocket = require('ws')
-const app = express() // Get an application instance of 'express'
 const port = process.env.PORT || 3000
-const api = require('./api/answers.json')
 const crypto = require("crypto");
 
-let questions = api.map((item) => {
-  return item.question
-})
-
-app.use(express.static('public'))
-
-app.locals.appTitle = 'WebSocket ChatBot'
-
-// Setup PUG as templating language
-app.set('view engine', 'pug')
-
-app.get('/', (req, res) => {
-  res.render('index')
-})
-
-// Invoke express get method...
-app.get('/api', (request, response) => {
-  // Output the bot answers,
-  response.json(api)
-})
-
-// Connect express app and the websocket server
-//const server = http.createServer(app)
 const server = http.createServer()
 
 const wss = new WebSocket.Server({ server })
@@ -40,59 +15,170 @@ const wss = new WebSocket.Server({ server })
 // Think of a websocket as a connected endpoint
 // Every client that connects will call this on function to fire
 wss.on('connection', (ws, req) => {
-  const sessionId = crypto.randomBytes(16).toString("hex");
+  const sessionId = generateSessionId()
 
-  // Add listeners to the WebSocket
   ws.on('message', (message) => {
     switch (message.toLowerCase()) {
       case "exit":
       case "goodbye":
       case "bye":
-        ws.send("Goodbye!");
-        ws.close();
+      case "bye-bye":
+        const response = "Goodbye!"
+        getAudio(response, audioContent => { sendResponse(ws, response, audioContent); ws.close() })
         break;
+      case "start over":
+      case "start again":
+      case "restart":
+        sendMessage("again", ws, sessionId)
       default:
-        // All socket clients are placed in an array
-        wss.clients.forEach((client) => {
-          sendMessage(message, client, sessionId)
-        })
+        sendMessage(message, ws, sessionId)
     }
   })
 
-  sendMessage("hi", ws, sessionId)
+  startChat(ws, sessionId)
 })
 
-// The express app should listen to this port
 server.listen(port, () => console.log(`Listening on port: ${server.address().port}`))
 
-function sendMessage(input, ws, session) {
+function generateSessionId() {
+  return crypto.randomBytes(16).toString("hex")
+}
+
+function startChat(ws, sessionId) {
+  sendMessage("hi", ws, sessionId)
+}
+
+const googleAPIAccesstoken = "Bearer ya29.a0AfH6SMA4jNOu9ACtAOQXwIF9dofQlQvXZ7btrPzbH_9rxhNgbxEh4Zcjxz1GC8W_E0DeVMHX5EJa8vnQ3tHpIu4c8o6Ni9HShBnswCbF4de2v4kHatro_VV8vn1EaUfho3254Uv1Ijm1iCSfukpjyc_NGxyQp4C9BRV1O2B0F04"
+
+function sendMessage(input, ws, sessionId) {
   axios
     .post(
-      `https://dialogflow.googleapis.com/v3beta1/projects/pp-devcos-cai-poc/locations/global/agents/af3180d5-2e17-4c79-a392-8f53ecf955f7/sessions/${session}:detectIntent`,
+     `https://dialogflow.googleapis.com/v3beta1/projects/pp-devcos-cai-poc/locations/global/agents/99bbb32f-3595-4557-92d7-913c28eb12ad/sessions/${sessionId}:detectIntent`,
+     // MTS chatbot
+     // `https://www.te-alm-25578492009340946904095.qa.paypal.com/smartchat/open/chat-bot`,
       {
-        "queryInput": {
-          "text": {
-            "text": `${input}`
+        queryInput: {
+          text: {
+            text: `${input}`
           },
-          "languageCode": "en"
+          languageCode: "en"
         },
-        "queryParams": {
-          "timeZone": "America/Los_Angeles"
+        queryParams: {
+          timeZone: "America/Los_Angeles"
         }
+        // MTS chatbot
+        // request_timestamp: 1605847050283,
+        // conversation_id: "8098af23-7cb1-4ee9-93a9-1764034a8e5d",
+        // text: `${input}`
       },
       {
+        httpsAgent: new https.Agent({
+          rejectUnauthorized: false
+        }),
         headers: {
-          "Authorization": "Bearer ya29.a0AfH6SMCJg8vqO8859fPN4mFIhIeJFHMBpL_jN6k_ASmndUKl6MT5h0PAlfPiXU1YDFHC2x17LHIPUR9lF04nodJIjjF3ywklZu7dqdF9LZHFTJke4I5Od0EMbcz1SF4XvbUd0iKa-qkIHsq78w6TjoSk_xbWbmX0gjU"
+          "Authorization": `${googleAPIAccesstoken}`
         }
       }
     )
     .then(res => {
       console.log(`status: ${res.status}`)
-      const output = res.data.queryResult.responseMessages[0].text.text
-      console.log(`output: ${output}`)
-      ws.send(`${output}`)
+      console.dir(res.data, {depth: null, colors: true})
+      const msgs = res.data.queryResult.responseMessages
+      // MTS chatbot
+      // const msgs = res.data.messages
+      const output = (msgs.length > 0) ? getResponse(msgs) : "Sorry, I do not understand."
+      getAudio(output, audioContent => sendResponse(ws, output, audioContent))
     })
     .catch(error => {
       console.error(error)
+      ws.send(
+        JSON.stringify({
+          text: `Sorry, there was a server error ${error.response.status}`,
+          isSuccess: false
+        })
+      )
+    })
+}
+
+function sendResponse(ws, text, audioContent) {
+  if (audioContent != null) {
+    ws.send(
+      JSON.stringify({
+        text: `${text}`,
+        audioContent: `${audioContent}`
+      })
+    )
+  } else {
+    ws.send(
+      JSON.stringify({
+        text: `${text}`
+      })
+    )
+  }
+  const lowerCaseText = text.toLowerCase()
+  if (
+    lowerCaseText.includes("good bye") ||
+    lowerCaseText.includes("good-bye") ||
+    lowerCaseText.includes("goodbye")
+  ) {
+    ws.close()
+  }
+}
+
+function getResponse(msgs) {
+  var output = ""
+  for (const i in msgs) {
+    const msg = msgs[i]
+    if (
+      typeof msg.text !== 'undefined' &&
+      typeof msg.text.text !== 'undefined'
+    ) {
+      if (output.length > 0) {
+        output += "\n\n"
+      }
+      output += msg.text.text
+    }
+    // MTS chatbot
+    // if (output != "") output += "\n\n"
+    // output += msgs[i].replace(/(<([^>]+)>)/gi, "")
+  }
+  return output
+}
+
+function getAudio(text, lambda) {
+  axios
+    .post(
+      "https://texttospeech.googleapis.com/v1/text:synthesize",
+      {
+        input: {
+          text: `${text}`
+        },
+        voice: {
+          languageCode: "en-US",
+          name: "en-US-Wavenet-H",
+          ssmlGender: "FEMALE"
+        },
+        audioConfig: {
+          audioEncoding: "MP3",
+          effectsProfileId: [ "handset-class-device" ]
+        }
+      },
+      {
+        httpsAgent: new https.Agent({
+          rejectUnauthorized: false
+        }),
+        headers: {
+          "Authorization": `${googleAPIAccesstoken}`
+        }
+      }
+    )
+    .then(res => {
+      console.log(`audioContent status: ${res.status}`)
+      const output = res.data.audioContent
+      lambda(output)
+    })
+    .catch(error => {
+      console.error(error)
+      lambda(null)
     })
 }
